@@ -1,0 +1,17 @@
+[project]
+name = "fbsm"
+version = "2026.04.25"
+
+dependencies = [
+    "scipy",
+]
+
+authors = [
+  {email = "hbandura@gmail.com"},
+]
+
+maintainers = [
+  {email = "hbandura@gmail.com"}
+]
+
+readme = "README.md"
