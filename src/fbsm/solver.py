@@ -171,7 +171,7 @@ class Solver:
 
 
     def _make_control_fn(self):
-        def u(t, y):
+        def u(t, y = None):
             prev_u_value = self.u0(t)
             for control_params in self.all_control_params:
                 prev_u_value = self.u_f(t, prev_u_value, control_params.with_y(y))
