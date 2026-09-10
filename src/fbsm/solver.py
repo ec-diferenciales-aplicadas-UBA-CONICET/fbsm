@@ -28,8 +28,8 @@ class AdjSystem:
 
 
 class ControlParams:
-    w_arr = None
-    p_arr = None
+    w_arr = []
+    p_arr = []
     y = None
     def __init__(self, w_arr, p_arr):
         self.w_arr = w_arr
@@ -39,6 +39,23 @@ class ControlParams:
         new_params = ControlParams(self.w_arr, self.p_arr)
         new_params.y = y
         return new_params
+
+
+class Result:
+    w_arr = []
+    p_arr = []
+    direct_sol = None
+    adj_sol = None
+    last_control = None
+    iterations = 0
+
+    def __init__(self, w_arr, p_arr, direct_sol, adj_sol, last_control, iterations):
+        self.w_arr = w_arr
+        self.p_arr = p_arr
+        self.direct_sol = direct_sol
+        self.adj_sol = adj_sol
+        self.last_control = last_control
+        self.iterations = iterations
 
 
 class TerminatingCondition:
@@ -200,10 +217,11 @@ class Solver:
         sol_adj = None
         w = None
         p = None
-        iteration = 1
+        iteration = 0
         control_function = self.u0
         new_control_function = None
-        while (self.max_iter == 0) or (iteration <= self.max_iter):
+        while (self.max_iter == 0) or (iteration < self.max_iter):
+            iteration += 1
             direct = self.direct_sys
             adj = self.adj_sys
             # Solución del sistema directo
@@ -218,10 +236,10 @@ class Solver:
             self.all_control_params.append(ControlParams(w, p))
             new_control_function = self._make_control_fn()
 
+
             if self.min_iter <= iteration:
                 if self.terminating is not None and self.terminating.terminate(sol_con, w, sol_adj, p, control_function, new_control_function):
                     break
             control_function = new_control_function
-            iteration += 1
 
-        return sol_con, w, sol_adj, p, new_control_function, iteration
+        return Result(w, p, sol_con, sol_adj, new_control_function, iteration)
