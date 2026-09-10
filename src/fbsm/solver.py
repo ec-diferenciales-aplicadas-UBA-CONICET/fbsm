@@ -2,8 +2,9 @@ import collections
 from scipy.integrate import solve_ivp
 import numpy as np
 
-class Control:
-    eqs = None # (t, x, u)
+
+class DirectSystem:
+    eqs = None # (t, y, u)
     t_span = []
     x0 = []
     t_eval = []
@@ -14,8 +15,8 @@ class Control:
         self.t_eval = t_eval
 
 
-class Adj:
-    eqs = None # (t, x, W)
+class AdjSystem:
+    eqs = None # (t, y, W)
     t_span = []
     pT = []
     t_eval = []
@@ -26,41 +27,23 @@ class Adj:
         self.t_eval = t_eval
 
 
+class ControlParams:
+    w_arr = None
+    p_arr = None
+    y = None
+    def __init__(self, w_arr, p_arr):
+        self.w_arr = w_arr
+        self.p_arr = p_arr
+
+    def with_y(self, y):
+        new_params = ControlParams(self.w_arr, self.p_arr)
+        new_params.y = y
+        return new_params
+
+
 class TerminatingCondition:
     def terminate(self, sol_con, w, sol_adj, p, u, next_u) -> bool:
         return False
-
-
-class ControlDistanceTerminatingCondition(TerminatingCondition):
-    r = 0.0
-    z = 0.0
-    t_eval = []
-
-    def __init__(self, r, z, t_eval):
-        if r <= 0.0:
-            raise Exception("terminating control ratio 'r' should be positive")
-        if r < 0.0:
-            raise Exception("terminating control zero value 'z' should be non-negative")
-        if len(t_eval) == 0:
-            raise Exception("t values to evaluate on control functions cannot be empty")
-        self.r = r
-        self.z = z
-        self.t_eval = t_eval
-
-    def terminate(self, sol_con, w, sol_adj, p, u, next_u) -> bool:
-        u2 = next_u
-        u1 = u
-        for t in self.t_eval:
-            v1 = u1(t)
-            v2 = u2(t)
-            if v1 == 0.0 and abs(v2) > self.z:
-                return False
-            if v2 == 0.0 and abs(v1) > self.z:
-                return False
-            diff = abs(v1 - v2)
-            if diff > self.r * abs(v2):
-                return False
-        return True
 
 
 class ManyTerminatingCondition(TerminatingCondition):
@@ -112,23 +95,26 @@ def sort_by_t(t_arr, y_arrs):
     raise Exception("t values are not sorted (should never happen)")
 
 
+# Not available until defining what to do on u(t, x) instead of just u(t)
+#
 # allows evaluation of fn by (numpy)arrays of values
-def with_array_evaluation(fn):
-    def _with_arr_ev(t):
-        if isinstance(t, np.ndarray):
-            return np.array([fn(ti) for ti in t])
-        if isinstance(t, collections.abc.Sequence):
-            return [fn(ti) for ti in t]
-        return fn(t)
-    return _with_arr_ev
+# def with_array_evaluation(fn):
+#     def _with_arr_ev(t):
+#         if isinstance(t, np.ndarray):
+#             return np.array([fn(ti) for ti in t])
+#         if isinstance(t, collections.abc.Sequence):
+#             return [fn(ti) for ti in t]
+#         return fn(t)
+#     return _with_arr_ev
+
 
 class Solver:
-    control_sys: Control = None
-    adj_sys: Adj = None
+    direct_sys: DirectSystem = None
+    adj_sys: AdjSystem = None
     terminating: TerminatingCondition = None
     max_iter: int = 0
     min_iter: int = 0
-    all_p_arr = []
+    all_control_params = []
 
     def set_max_iterations(self, n):
         if n < 0:
@@ -165,11 +151,11 @@ class Solver:
         return result
 
 
-    def set_control_system(self, control: Control):
-        self.control_sys = control
+    def set_direct_system(self, direct: DirectSystem):
+        self.direct_sys = direct
         return self
 
-    def set_adj_system(self, adj: Adj):
+    def set_adj_system(self, adj: AdjSystem):
         self.adj_sys = adj
         return self
 
@@ -179,24 +165,23 @@ class Solver:
         return self
 
     u_f = None
-
     def set_control_function(self, u_f):
         self.u_f = u_f
         return self
 
-    def _wrapped_control(self):
-        all_p_arr = self.all_p_arr
-        def u(t):
-            previous_u_t = self.u0(t)
-            for p_arr in all_p_arr:
-                previous_u_t = self.u_f(t, previous_u_t, p_arr)
-            return previous_u_t
+
+    def _make_control_fn(self):
+        def u(t, y):
+            prev_u_value = self.u0(t)
+            for control_params in self.all_control_params:
+                prev_u_value = self.u_f(t, prev_u_value, control_params.with_y(y))
+            return prev_u_value
         return u
 
 
     def check_state(self):
-        if self.control_sys is None:
-            raise Exception("Control system not set")
+        if self.direct_sys is None:
+            raise Exception("Direct system not set")
         if self.adj_sys is None:
             raise Exception("Adj system not set")
         if self.u0 is None:
@@ -205,7 +190,7 @@ class Solver:
             raise Exception("Control function not set")
 
     def reset(self):
-        self.all_p_arr = []
+        self.all_control_params = []
 
 
     def solve(self):
@@ -219,19 +204,19 @@ class Solver:
         control_function = self.u0
         new_control_function = None
         while (self.max_iter == 0) or (iteration <= self.max_iter):
-            control = self.control_sys
+            direct = self.direct_sys
             adj = self.adj_sys
-            # Solución del sistema con control
-            sol_con = solve_ivp(control.eqs, control.t_span, control.x0, t_eval=control.t_eval, args=(control_function,))
+            # Solución del sistema directo
+            sol_con = solve_ivp(direct.eqs, direct.t_span, direct.x0, t_eval=direct.t_eval, args=(control_function,))
             w = self.sol_interp(sol_con)
 
             # Solución del sistema adjunto
             sol_adj = solve_ivp(adj.eqs, adj.t_span, adj.pT, t_eval=adj.t_eval, args=(w,))
             p = self.sol_interp(sol_adj)
-            self.all_p_arr.append(p)
 
             # Nuevo control
-            new_control_function = self._wrapped_control()
+            self.all_control_params.append(ControlParams(w, p))
+            new_control_function = self._make_control_fn()
 
             if self.min_iter <= iteration:
                 if self.terminating is not None and self.terminating.terminate(sol_con, w, sol_adj, p, control_function, new_control_function):
@@ -239,4 +224,4 @@ class Solver:
             control_function = new_control_function
             iteration += 1
 
-        return sol_con, w, sol_adj, p, with_array_evaluation(new_control_function), iteration
+        return sol_con, w, sol_adj, p, new_control_function, iteration

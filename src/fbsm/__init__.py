@@ -1,8 +1,8 @@
-from .solver import Solver, Control, Adj, TerminatingCondition, ControlDistanceTerminatingCondition, ManyTerminatingCondition
+from .solver import Solver, DirectSystem, Adj, TerminatingCondition, ControlDistanceTerminatingCondition, ManyTerminatingCondition
 
 __all__ = [
     'Solver',
-    'Control',
+    'DirectSystem',
     'Adj',
     'TerminatingCondition',
     'ControlDistanceTerminatingCondition',

@@ -9,7 +9,7 @@ class ControlTest(unittest.TestCase):
         t_min_max = [-1, 7]
         ini = [1, -3, 7]
         t_values = [-1, 2, 3, 7]
-        control = Control(_f, t_min_max, ini, t_values)
+        control = DirectSystem(_f, t_min_max, ini, t_values)
         self.assertEqual(control.eqs, _f)
         self.assertEqual(control.t_span, t_min_max)
         self.assertEqual(control.x0, ini)
@@ -58,34 +58,35 @@ class FlipAllTest(unittest.TestCase):
     def test_flip_empty(self):
         self.assertEqual([], flip_all([]))
 
-
-class WithArrEvTest(unittest.TestCase):
-    def do_test(self, x):
-        # Function that would not work with an array variable
-        def f(i):
-            if i < 10:
-                return i * 2
-            return i * 3
-        try:
-            _ = f(x)
-            #ValueError if x is numpy.ndarray or TypeError if it is a Sequence
-            self.fail("Should have thrown ValueError or TypeError. Didn't")
-        except ValueError as e:
-            pass
-        except TypeError as e:
-            pass
-        f2 = with_array_evaluation(f)
-        return f2(x)
-
-    def test_with_numpy(self):
-        actual = self.do_test(np.array([2, 7, 34]))
-        expected = np.array([4, 14, 102])
-        self.assertTrue((expected == actual).all())
-
-    def test_with_seq(self):
-        actual = self.do_test([1, 5, 12])
-        expected = [2, 10, 36]
-        self.assertEqual(expected, actual)
+# Not available until defining what to do on u(t, x) instead of just u(t)
+#
+# class WithArrEvTest(unittest.TestCase):
+#     def do_test(self, x):
+#         # Function that would not work with an array variable
+#         def f(i):
+#             if i < 10:
+#                 return i * 2
+#             return i * 3
+#         try:
+#             _ = f(x)
+#             #ValueError if x is numpy.ndarray or TypeError if it is a Sequence
+#             self.fail("Should have thrown ValueError or TypeError. Didn't")
+#         except ValueError as e:
+#             pass
+#         except TypeError as e:
+#             pass
+#         f2 = with_array_evaluation(f)
+#         return f2(x)
+#
+#     def test_with_numpy(self):
+#         actual = self.do_test(np.array([2, 7, 34]))
+#         expected = np.array([4, 14, 102])
+#         self.assertTrue((expected == actual).all())
+#
+#     def test_with_seq(self):
+#         actual = self.do_test([1, 5, 12])
+#         expected = [2, 10, 36]
+#         self.assertEqual(expected, actual)
 
 
 
