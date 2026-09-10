@@ -1,10 +1,10 @@
-from .solver import Solver, DirectSystem, Adj, TerminatingCondition, ControlDistanceTerminatingCondition, ManyTerminatingCondition
+from .solver import Solver, DirectSystem, AdjSystem, ControlParams, TerminatingCondition, ManyTerminatingCondition
 
 __all__ = [
     'Solver',
     'DirectSystem',
-    'Adj',
+    'AdjSystem',
+    'ControlParams',
     'TerminatingCondition',
-    'ControlDistanceTerminatingCondition',
     'ManyTerminatingCondition',
 ]
